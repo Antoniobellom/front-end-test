@@ -1,0 +1,11 @@
+/* src/styles/Catalog.css */
+.catalog-container {
+    padding: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+h1 {
+    margin-bottom: 20px;
+}

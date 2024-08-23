@@ -1,103 +1,71 @@
-import {Broker} from "../../model/Broker"
+import { Broker } from "../../model/Broker";
 
-
-const HOST = process.env.HOST_API
+const HOST = "https://placeholder-api.com/brokers";  // Usa la URL completa de la API
 
 interface BrokerData<T> {
-    data: T
+    data: T;
 }
 
-export class BrokerClient {
+// Función que crea un cliente de Broker
+export const createBrokerClient = (token: string = "") => {
+    const host = `${HOST}`;
 
-  private host: string
-  private token: string
-    
-  constructor(token?: string){
-    this.host = `${HOST}/brokers`
-    this.token = token ?? ""
-  }
+    const fetchData = async <T>(url: string, options?: RequestInit): Promise<BrokerData<T> | null> => {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                console.error("Error: ", response.statusText);  // Añade logging para errores de red
+                return null;
+            }
+            return response.json() as Promise<BrokerData<T>>;
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            return null;
+        }
+    };
 
-  getByIdentifier(identifier: string):Promise<BrokerData<Broker> | null>{
-    return this.get(identifier, "identifier")
-  }
+    return {
+        getByIdentifier: (identifier: string) => fetchData<Broker>(`${host}/${identifier}?keyName=identifier`),
 
-  getById(id: string):Promise<BrokerData<Broker> | null>{
-    return this.get(id)
-  }
+        getById: (id: string) => fetchData<Broker>(`${host}/${id}`),
 
-  private get(value: string, key?: string):Promise<BrokerData<Broker> | null>{
-    return fetch(`${this.host}/${value}${key === "identifier" ? "?keyName=identifier" : ""}`).then(response => {
-          
-      if (!response.ok) {
-        return null
-      }
-          
-      return response.json() as Promise<BrokerData<Broker>>
-    })
-  }
+        getAll: () => {
+            const headers = new Headers();
+            headers.append("X-Api-Key", token);
+            headers.append("Content-Type", "application/json");
 
-  getAll():Promise<BrokerData<Broker[]> | null>{
+            const requestOptions = { method: "GET", headers: headers };
+            return fetchData<Broker[]>(`${host}?isActive=1`, requestOptions);
+        },
 
-    const headers = new Headers()
-    headers.append("X-Api-Key", this.token)
-    headers.append("Content-Type", "application/json")
+        store: (broker: Broker) => {
+            const headers = new Headers();
+            headers.append("X-Api-Key", token);
+            headers.append("Content-Type", "application/json");
 
-    const requestOptions = { method: "GET", headers: headers }
-    
-    return fetch(`${this.host}?isActive=1`, requestOptions).then(response => {
-      if (!response.ok) {
-        return null
-      }
-            
-      return response.json() as Promise<BrokerData<Broker[]>>
-    })
-  }
+            const requestOptions = {
+                method: "POST",
+                headers: headers,
+                body: JSON.stringify({
+                    identifier: broker.identifier,
+                    name: broker.name,
+                    description: broker.description,
+                }),
+            };
+            return fetchData<Broker>(host, requestOptions);
+        },
 
-  store(broker: Broker):Promise<BrokerData<Broker> | null>{
+        update: (id: string, updates: Partial<Broker>) => {
+            const headers = new Headers();
+            headers.append("X-Api-Key", token);
+            headers.append("Content-Type", "application/json");
 
-    const headers = new Headers()
-    headers.append("X-Api-Key", this.token)
-    headers.append("Content-Type", "application/json")
-
-    const requestOptions = { 
-      method: "POST", 
-      headers: headers,
-      body: JSON.stringify({
-        identifier: broker.identifier,
-        name: broker.name,
-        description: broker.description,
-      })
-    }
-    
-    return fetch(`${this.host}`, requestOptions).then(response => {
-      if (!response.ok) {
-        return null
-      }
-            
-      return response.json() as Promise<BrokerData<Broker>>
-    })
-  }
-
-  update(id: string, {identifier, name, description}:{identifier?: string, name?: string, description?: string}):Promise<BrokerData<Broker> | null>{
-
-    const headers = new Headers()
-    headers.append("X-Api-Key", this.token)
-    headers.append("Content-Type", "application/json")
-
-    const requestOptions = { 
-      method: "PATCH", 
-      headers: headers,
-      body: JSON.stringify({
-        identifier, name, description,
-      })
-    }
-    
-    return fetch(`${this.host}/${id}`, requestOptions).then(response => {
-      if (!response.ok) {
-        return null
-      }
-          
-      return response.json() as Promise<BrokerData<Broker>>
-    })
-  }
-}
+            const requestOptions = {
+                method: "PATCH",
+                headers: headers,
+                body: JSON.stringify(updates),
+            };
+            return fetchData<Broker>(`${host}/${id}`, requestOptions);
+        },
+    };
+};
